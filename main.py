@@ -16,21 +16,21 @@ def main():
     lambda_update = lambda: update_button_states(
         save_button, update_button, delete_button,
         entries_source, entries_target,
-        run_button, update_contacts_var, update_transfer_journal_var
+        run_button, update_contacts_var, update_transfer_journal_var,plan_var
     )
 
     # Pass lambda_update to setup_buttons to handle UI updates
     save_button, update_button, delete_button = setup_buttons(root, entries_source, entries_target, lambda_update)
 
     # Setup checkboxes and run button, now with correct column_name and column_value
-    update_contacts_checkbox, run_button, update_contacts_var, update_transfer_journal_checkbox, update_transfer_journal_var = setup_checkboxes_and_run_button(
+    update_contacts_checkbox, run_button, update_contacts_var, update_transfer_journal_checkbox, update_transfer_journal_var,plan_checkbox, plan_var = setup_checkboxes_and_run_button(
         root, lambda_update, entries_source, entries_target, column_name, transfer_value , target_column_name
     )
 
     # Configure checkboxes to update button states on change
     update_contacts_checkbox.config(command=lambda_update)
     update_transfer_journal_checkbox.config(command=lambda_update)
-
+    plan_checkbox.config(command=lambda_update)
     # Initial state update
     lambda_update()
 

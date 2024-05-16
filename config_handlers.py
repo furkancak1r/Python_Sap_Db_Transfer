@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import messagebox
 from config_manager import save_config, delete_config
-from data_operations import check_and_update_ocrd, transfer_based_on_condition
+from data_operations import check_and_update_ocrd, transfer_based_on_condition,account_plan_transfer_and_exclude_balances
 
 
 def handle_config(entries, update=False):
@@ -49,4 +49,13 @@ def execute_transfer_based_on_condition_run(entries_source, entries_target, colu
         messagebox.showinfo("Success", "Yevmiye kayıtları aktarımı başarılı!")
     else:
         messagebox.showerror("Error", "Yevmiye kayıtları aktarılırken hata meydana geldi!.")
+    callback()
+
+def execute_account_plan_transfer_and_exclude_balances_run(entries_source, entries_target, callback):
+    success = account_plan_transfer_and_exclude_balances(
+        entries_source, entries_target)
+    if success:
+        messagebox.showinfo("Success", "Hesap planı aktarımı başarılı!")
+    else:
+        messagebox.showerror("Error", "Hesap planı aktarılırken hata meydana geldi!.")
     callback()

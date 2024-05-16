@@ -1,0 +1,30 @@
+İncelediğim kodlara göre, işlemler ve detaylar şu şekilde:
+
+### 1. `check_and_update_ocrd` Fonksiyonu:
+Bu fonksiyon, muhatapları (`OCRD` tablosu) kaynak veritabanından hedef veritabanına aktarırken belirli kolonları hariç tutar. Bu kolonlar genellikle mali bilgiler içerir (bakiye, kredi limiti gibi). 
+
+**Detaylar:**
+- `excluded_columns` listesi, aktarılmayacak olan mali kolonları içerir. Bunlar: `Balance`, `CreditLine`, `DebtLine` gibi.
+- Fonksiyon önce kaynak ve hedef veritabanlarındaki `OCRD` tablosu kolonlarını çeker.
+- Hariç tutulan kolonlar dışındaki, her iki veritabanında da bulunan kolonlar belirlenir.
+- Kaynak veritabanından, belirlenen kolonlardaki veriler çekilir.
+- Eğer hedef veritabanında aynı `CardCode` bulunmuyorsa, yeni veri olarak eklenir. Bu sırada `CardCode` dışındaki veriler kullanılır ve yeni bir sorgu ile veriler eklenir.
+
+### 2. `sync_rows` Fonksiyonu:
+Bu fonksiyon, `OJDT` tablosundaki verileri kaynak veritabanından hedef veritabanına senkronize eder. Senkronizasyon sırasında, belirli bir koşula (özgün `TransId` gibi) göre veri çekilir ve uygun şekilde güncellenir.
+
+**Detaylar:**
+- Senkronizasyon için, belirtilen `column_name` ve `column_value` değerlerine göre kaynak veritabanından veri çekilir.
+- Çekilen veriler hedef veritabanına aktarılırken, eğer aynı `TransId` hedef veritabanında yoksa, hedef veritabanındaki en yüksek `TransId` alınır, bir artırılır ve bu yeni değer kullanılır.
+- Eğer veriler hedef veritabanında mevcutsa, yeni `TransId` ile güncellenir ve kaydedilir.
+
+### 3. `update_target_jdt1` Fonksiyonu:
+Bu fonksiyon, `JDT1` tablosundaki verileri hedef veritabanında günceller. Öncelikle, hedef `OJDT` tablosundaki `TransId` değerleri ile eşleşen kaynak veritabanı verileri çekilir ve hedef `JDT1` tablosunda güncellenir.
+
+**Detaylar:**
+- Hedef `OJDT` tablosundan tüm `TransId` değerleri ve ilgili sütundaki orijinal `TransId` değerleri çekilir.
+- Bu değerler kullanılarak, kaynak `JDT1` tablosundaki veriler çekilir.
+- Çekilen verilerin `TransId`'leri, hedef veritabanındaki yeni `TransId`'ler ile güncellenir.
+- Güncellenen veriler, hedef `JDT1` tablosuna eklenmeden önce, eski kayıtlar silinir ve yeni veriler eklenir.
+
+Bu fonksiyonlar aracılığıyla, veritabanı verileri bir veritabanından diğerine aktarılırken mali bilgilerin korunması ve uygun şekilde yönetilmesi sağlanır. Ayrıca, veri bütünlüğünün korunması için `TransId` gibi anahtar alanlar özel olarak yönetilir.

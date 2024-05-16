@@ -1,10 +1,11 @@
 import pyodbc
 import logging
+from data_operations_helpers import fetch_data_with_params, fetch_columns, fetch_data, parse_db_config
+
 # önce ojdt sonra jdt1 tabloları transfer ediyor, dikkat ettiğimiz nokta var olan verileri tekrar eklememesi ve verileri silmemesi
 # Setup basic configuration for logging
 logging.basicConfig(filename='database_update.log', level=logging.INFO,
                     format='%(asctime)s:%(levelname)s:%(message)s')
-
 
 def check_and_update_ocrd(entries_source, entries_target):
     source_config, target_config = parse_db_config(
@@ -147,7 +148,44 @@ def update_target_jdt1(entries_source, entries_target, target_column_name):
         return False
 
 
+def account_plan_transfer_and_exclude_balances(entries_source, entries_target):
+    try:
+        # Parse database configurations for source and target
+        source_config, target_config = parse_db_config(entries_source, entries_target)
+        
+        # Connect to source database and fetch data
+        with pyodbc.connect(**source_config) as source_conn:
+            source_data, columns = fetch_data(source_conn, "SELECT * FROM OACT")
+            # Convert each pyodbc.Row to a dictionary manually
+            data_dicts = [{columns[i]: value for i, value in enumerate(row)} for row in source_data]
 
+        # Exclude certain columns from data
+        filtered_data = [
+            {key: value for key, value in record.items() if key not in ['CurrTotal', 'SysTotal', 'FcTotal']}
+            for record in data_dicts
+        ]
+
+        # Connect to target database, clear existing data and insert new data
+        with pyodbc.connect(**target_config) as target_conn:
+            target_cursor = target_conn.cursor()
+            target_cursor.execute("DELETE FROM OACT")
+            target_conn.commit()
+
+            for record in filtered_data:
+                placeholders = ', '.join(['?'] * len(record))
+                columns = ', '.join(record.keys())
+                sql = f"INSERT INTO OACT ({columns}) VALUES ({placeholders})"
+                target_cursor.execute(sql, list(record.values()))
+            
+            target_conn.commit()
+
+        return True
+
+    except Exception as e:
+        print(f"Error in transferring data: {str(e)}")
+        return False
+
+  
 def transfer_based_on_condition(entries_source, entries_target, column_name, column_value, target_column_name):
     # Önce veri senkronizasyonunu gerçekleştir
     if not sync_rows(entries_source, entries_target, column_name, column_value, target_column_name):
@@ -159,48 +197,3 @@ def transfer_based_on_condition(entries_source, entries_target, column_name, col
 
     return True
 
-
-def fetch_data_with_params(conn, query, params):
-    cursor = conn.cursor()
-    try:
-        cursor.execute(query, params)
-        return cursor.fetchall(), [column[0] for column in cursor.description]
-    finally:
-        cursor.close()
-
-
-def fetch_columns(conn, table):
-    cursor = conn.cursor()
-    try:
-        # Returns no rows, only column info
-        cursor.execute(f"SELECT * FROM {table} WHERE 1=0")
-        return [column[0] for column in cursor.description]
-    finally:
-        cursor.close()
-
-
-def fetch_data(conn, query):
-    cursor = conn.cursor()
-    try:
-        cursor.execute(query)
-        return cursor.fetchall(), [column[0] for column in cursor.description]
-    finally:
-        cursor.close()
-
-
-def parse_db_config(entries_source, entries_target):
-    source_config = {
-        'driver': '{ODBC Driver 17 for SQL Server}',
-        'server': entries_source['server'].get(),
-        'database': entries_source['database'].get(),
-        'user': entries_source['username'].get(),
-        'password': entries_source['password'].get()
-    }
-    target_config = {
-        'driver': '{ODBC Driver 17 for SQL Server}',
-        'server': entries_target['server'].get(),
-        'database': entries_target['database'].get(),
-        'user': entries_target['username'].get(),
-        'password': entries_target['password'].get()
-    }
-    return source_config, target_config
