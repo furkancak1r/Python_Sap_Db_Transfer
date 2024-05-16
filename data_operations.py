@@ -133,10 +133,6 @@ def update_target_jdt1(entries_source, entries_target, target_column_name):
                         data[transId_idx] = transId_map[original_transId]
                         updated_source_data.append(data)
 
-                    # Delete existing records in the target JDT1 table for the new TransId
-                    delete_query = f"DELETE FROM JDT1 WHERE TransId = ?"
-                    target_cursor.execute(delete_query, (transId_map[original_transId],))
-
                     # Insert updated records into the target JDT1 table
                     insert_query = f"INSERT INTO JDT1 ({', '.join(common_columns)}) VALUES ({', '.join(['?' for _ in common_columns])})"
                     for data in updated_source_data:
@@ -150,7 +146,6 @@ def update_target_jdt1(entries_source, entries_target, target_column_name):
         print(f"Error updating target JDT1 table: {str(e)}")
         return False
 
-
 def account_plan_transfer_and_exclude_balances(entries_source, entries_target):
     try:
         # Parse database configurations for source and target
@@ -158,30 +153,51 @@ def account_plan_transfer_and_exclude_balances(entries_source, entries_target):
         
         # Connect to source database and fetch data
         with pyodbc.connect(**source_config) as source_conn:
-            source_data, columns = fetch_data(source_conn, "SELECT * FROM OACT")
-            # Convert each pyodbc.Row to a dictionary manually
-            data_dicts = [{columns[i]: value for i, value in enumerate(row)} for row in source_data]
+            source_cursor = source_conn.cursor()
+            fetch_query = "SELECT * FROM OACT"
+            source_cursor.execute(fetch_query)
+            source_columns = [desc[0] for desc in source_cursor.description]
+            source_data = source_cursor.fetchall()
 
-        # Exclude certain columns from data
-        filtered_data = [
-            {key: value for key, value in record.items() if key not in ['CurrTotal', 'SysTotal', 'FcTotal']}
-            for record in data_dicts
-        ]
+        # Columns to exclude from operations
+        excluded_columns = ['CurrTotal', 'SysTotal', 'FcTotal']
 
-        # Connect to target database, clear existing data and insert new data
+        # Connect to target database
         with pyodbc.connect(**target_config) as target_conn:
             target_cursor = target_conn.cursor()
-            target_cursor.execute("DELETE FROM OACT")
-            target_conn.commit()
-
-            for record in filtered_data:
-                placeholders = ', '.join(['?'] * len(record))
-                columns = ', '.join(record.keys())
-                sql = f"INSERT INTO OACT ({columns}) VALUES ({placeholders})"
-                target_cursor.execute(sql, list(record.values()))
             
-            target_conn.commit()
+            # Process each record from the source
+            for row in source_data:
+                row_dict = {source_columns[i]: value for i, value in enumerate(row)}
+                
+                # Check for existence in the target database
+                check_query = "SELECT * FROM OACT WHERE AcctCode = ? AND AcctName = ?"
+                target_cursor.execute(check_query, (row_dict['AcctCode'], row_dict['AcctName']))
+                existing_row = target_cursor.fetchone()
+                
+                if existing_row:
+                    # Convert existing row to dict for comparison
+                    existing_row_dict = {source_columns[i]: existing_row[i] for i in range(len(source_columns))}
+                    
+                    # Check if FatherNum, Levels, or GrpLine are different
+                    fields_to_compare = ['FatherNum', 'Levels', 'GrpLine']
+                    differences = any(existing_row_dict.get(field) != row_dict.get(field) for field in fields_to_compare)
 
+                    if differences:
+                        # Prepare update statement for changed fields excluding excluded_columns
+                        update_data = {col: row_dict[col] for col in source_columns if col not in excluded_columns and row_dict[col] != existing_row_dict[col]}
+                        if update_data:
+                            update_query = f"UPDATE OACT SET " + ', '.join([f"{col} = ?" for col in update_data]) + " WHERE AcctCode = ? AND AcctName = ?"
+                            update_values = list(update_data.values()) + [row_dict['AcctCode'], row_dict['AcctName']]
+                            target_cursor.execute(update_query, update_values)
+
+                else:
+                    # Insert new row excluding excluded columns
+                    insert_data = {col: row_dict[col] for col in source_columns if col not in excluded_columns}
+                    insert_query = "INSERT INTO OACT (" + ', '.join(insert_data.keys()) + ") VALUES (" + ', '.join(['?' for _ in insert_data]) + ")"
+                    target_cursor.execute(insert_query, list(insert_data.values()))
+
+            target_conn.commit()
         return True
 
     except Exception as e:
@@ -189,7 +205,7 @@ def account_plan_transfer_and_exclude_balances(entries_source, entries_target):
         print(f"Error in transferring data: {str(e)}")
         return False
 
-  
+
 def transfer_based_on_condition(entries_source, entries_target, column_name, column_value, target_column_name):
     # Önce veri senkronizasyonunu gerçekleştir
     if not sync_rows(entries_source, entries_target, column_name, column_value, target_column_name):
