@@ -18,7 +18,7 @@ def update_button_states(save_button, update_button, delete_button, entries_sour
 
 
 def setup_root(root, width=650, height=600):
-    root.title("Database Configuration")
+    root.title("SAP Aktarım")
     font_specs = ("Arial", 12)
     center_window(root, width, height)
     return font_specs
