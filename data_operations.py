@@ -271,3 +271,41 @@ def tax_run_transfer(entries_source, entries_target):
     if not tax_run_transfer_vtg1(entries_source, entries_target):
         return False
     return True
+
+def exchange_rate_run_transfer(entries_source, entries_target):
+    source_config, target_config = parse_db_config(entries_source, entries_target)
+
+    try:
+        with pyodbc.connect(**source_config) as source_conn, pyodbc.connect(**target_config) as target_conn:
+            source_cursor = source_conn.cursor()
+            target_cursor = target_conn.cursor()
+
+            source_columns = fetch_columns(source_conn, 'ORTT')
+            target_columns = fetch_columns(target_conn, 'ORTT')
+
+            common_columns = [col for col in source_columns if col in target_columns]
+
+            source_query = f"SELECT * FROM ORTT"
+            source_rows, column_names = fetch_data(source_conn, source_query)
+
+            for row in source_rows:
+                rateDate, currency = row[column_names.index('RateDate')], row[column_names.index('Currency')]
+                target_query = f"SELECT * FROM ORTT WHERE RateDate = ? AND Currency = ?"
+                target_cursor.execute(target_query, (rateDate, currency))
+                result = target_cursor.fetchone()
+
+                if result:
+                    # Update existing record
+                    update_values = [row[column_names.index(col)] for col in common_columns]
+                    update_query = f"UPDATE ORTT SET {', '.join([f'{col} = ?' for col in common_columns])} WHERE RateDate = ? AND Currency = ?"
+                    target_cursor.execute(update_query, update_values + [rateDate, currency])
+                else:
+                    # Insert new record
+                    insert_values = [row[column_names.index(col)] for col in common_columns]
+                    insert_query = f"INSERT INTO ORTT ({', '.join(common_columns)}) VALUES ({', '.join(['?' for _ in common_columns])})"
+                    target_cursor.execute(insert_query, insert_values)
+                target_conn.commit()
+            return True
+    except Exception as e:
+        print(f"Error in transferring data: {str(e)}")
+        return False
