@@ -96,18 +96,14 @@ def run_operations(contacts_var, transfer_var, entries_source, entries_target, c
            (not transfer_var.get() or operation_status['transfer']) and
            (not plan_var.get() or operation_status['plan'])):
             messagebox.showinfo(
-                "Başarılı", "Aktarımlar başarıyla tamamlandı!")
+                "Başarılı", "Tüm aktarımlar başarıyla tamamlandı!")
 
     # Execute operations based on checkbox states
-    if contacts_var.get() and transfer_var.get():
+    if contacts_var.get():
         execute_contacts_run(entries_source, entries_target, contacts_callback)
+    if transfer_var.get():
         execute_transfer_based_on_condition_run(
             entries_source, entries_target, column_name, column_value, target_column_name, transfer_callback)
-    elif contacts_var.get():
-        execute_contacts_run(entries_source, entries_target, contacts_callback)
-    elif transfer_var.get():
-        execute_transfer_based_on_condition_run(
-            entries_source, entries_target, column_name, column_value, target_column_name, transfer_callback)
-    elif plan_var.get():
+    if plan_var.get():
         execute_account_plan_transfer_and_exclude_balances_run(
             entries_source, entries_target, plan_callback)
