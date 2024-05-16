@@ -95,6 +95,8 @@ def sync_rows(entries_source, entries_target, column_name, column_value, target_
                     target_conn.commit()
             return True
     except Exception as e:
+        logging.error(f"Error sync_rows,ojdt: {str(e)}")
+
         return False
 
 def update_target_jdt1(entries_source, entries_target, target_column_name):
@@ -144,6 +146,7 @@ def update_target_jdt1(entries_source, entries_target, target_column_name):
             return True
 
     except Exception as e:
+        logging.error(f"Error updating target JDT1 table: {str(e)}")
         print(f"Error updating target JDT1 table: {str(e)}")
         return False
 
@@ -182,6 +185,7 @@ def account_plan_transfer_and_exclude_balances(entries_source, entries_target):
         return True
 
     except Exception as e:
+        logging.error(f"Error in transferring data: {str(e)}")
         print(f"Error in transferring data: {str(e)}")
         return False
 
@@ -229,6 +233,7 @@ def tax_run_transfer_ovtg(entries_source, entries_target):
                     target_conn.commit()
             return True
     except Exception as e:
+        logging.error(f"tax_run_transfer_ovtg: {str(e)}")
         return False
 
 def tax_run_transfer_vtg1(entries_source, entries_target):
@@ -263,6 +268,7 @@ def tax_run_transfer_vtg1(entries_source, entries_target):
                     target_conn.commit()
             return True
     except Exception as e:
+        logging.error(f"tax_run_transfer_vtg1: {str(e)}")
         return False
     
 def tax_run_transfer(entries_source, entries_target):
@@ -307,5 +313,6 @@ def exchange_rate_run_transfer(entries_source, entries_target):
                 target_conn.commit()
             return True
     except Exception as e:
+        logging.error(f"exchange_rate_run_transfer: {str(e)}")
         print(f"Error in transferring data: {str(e)}")
         return False
