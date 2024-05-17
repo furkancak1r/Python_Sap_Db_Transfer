@@ -165,35 +165,27 @@ def account_plan_transfer_and_exclude_balances(entries_source, entries_target):
         # Connect to target database
         with pyodbc.connect(**target_config) as target_conn:
             target_cursor = target_conn.cursor()
-            
+            target_cursor.execute(fetch_query)
+            target_columns = [desc[0] for desc in target_cursor.description]
+            common_columns = [col for col in source_columns if col in target_columns and col not in excluded_columns]
+
             # Process each record from the source
             for row in source_data:
-                row_dict = {source_columns[i]: value for i, value in enumerate(row)}
-                
+                row_dict = {source_columns[i]: value for i, value in enumerate(row) if source_columns[i] in common_columns}
                 # Check for existence in the target database
-                check_query = "SELECT * FROM OACT WHERE AcctCode = ? AND AcctName = ?"
-                target_cursor.execute(check_query, (row_dict['AcctCode'], row_dict['AcctName']))
-                existing_row = target_cursor.fetchone()
-                
-                if existing_row:
-                    # Convert existing row to dict for comparison
-                    existing_row_dict = {source_columns[i]: existing_row[i] for i in range(len(source_columns))}
-                    
-                    # Check if FatherNum, Levels, or GrpLine are different
-                    fields_to_compare = ['FatherNum', 'Levels', 'GrpLine']
-                    differences = any(existing_row_dict.get(field) != row_dict.get(field) for field in fields_to_compare)
+                check_query = "SELECT 1 FROM OACT WHERE AcctCode = ?"
+                target_cursor.execute(check_query, (row_dict['AcctCode'],))
+                exists = target_cursor.fetchone()
 
-                    if differences:
-                        # Prepare update statement for changed fields excluding excluded_columns
-                        update_data = {col: row_dict[col] for col in source_columns if col not in excluded_columns and row_dict[col] != existing_row_dict[col]}
-                        if update_data:
-                            update_query = f"UPDATE OACT SET " + ', '.join([f"{col} = ?" for col in update_data]) + " WHERE AcctCode = ? AND AcctName = ?"
-                            update_values = list(update_data.values()) + [row_dict['AcctCode'], row_dict['AcctName']]
-                            target_cursor.execute(update_query, update_values)
-
+                if exists:
+                    # Update existing record
+                    update_data = {col: row_dict[col] for col in common_columns if col not in excluded_columns}
+                    update_query = "UPDATE OACT SET " + ', '.join([f"{col} = ?" for col in update_data.keys()]) + " WHERE AcctCode = ?"
+                    update_values = list(update_data.values()) + [row_dict['AcctCode']]
+                    target_cursor.execute(update_query, update_values)
                 else:
-                    # Insert new row excluding excluded columns
-                    insert_data = {col: row_dict[col] for col in source_columns if col not in excluded_columns}
+                    # Insert new record
+                    insert_data = {col: row_dict[col] for col in common_columns if col not in excluded_columns}
                     insert_query = "INSERT INTO OACT (" + ', '.join(insert_data.keys()) + ") VALUES (" + ', '.join(['?' for _ in insert_data]) + ")"
                     target_cursor.execute(insert_query, list(insert_data.values()))
 
