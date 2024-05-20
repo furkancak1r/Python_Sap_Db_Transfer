@@ -134,9 +134,13 @@ def update_target_jdt1(entries_source, entries_target, target_column_name):
                         updated_source_data.append(data)
 
                     # Insert updated records into the target JDT1 table
-                    insert_query = f"INSERT INTO JDT1 ({', '.join(common_columns)}) VALUES ({', '.join(['?' for _ in common_columns])})"
                     for data in updated_source_data:
-                        target_cursor.execute(insert_query, data)
+                        try:
+                            insert_query = f"INSERT INTO JDT1 ({', '.join(common_columns)}) VALUES ({', '.join(['?' for _ in common_columns])})"
+                            target_cursor.execute(insert_query, data)
+                        except pyodbc.IntegrityError as e:
+                            logging.error(f"Duplicate key error: {str(e)}")
+                            continue
 
             target_conn.commit()
             return True

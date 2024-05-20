@@ -1,7 +1,7 @@
 import tkinter as tk
 from ui_handlers import setup_root, setup_buttons, setup_checkboxes_and_run_button, update_button_states
 from setup_config import setup_entries
-
+#pyinstaller --onefile --noconsole --name SapIsyeriAktarim main.py
 def main():
     root = tk.Tk()
     font_specs = setup_root(root)
