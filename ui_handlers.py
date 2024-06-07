@@ -1,10 +1,10 @@
 import tkinter as tk
 from config_manager import read_config
-from config_handlers import save_configs, delete_configs, execute_contacts_run, execute_transfer_based_on_condition_run, execute_account_plan_transfer_and_exclude_balances_run,execute_tax_run,execute_exchange_rate_run
+from config_handlers import save_configs, delete_configs, execute_contacts_run, execute_transfer_based_on_condition_run, execute_account_plan_transfer_and_exclude_balances_run,execute_tax_run,execute_exchange_rate_run,execute_user_run
 from tkinter import messagebox
 
 
-def update_button_states(save_button, update_button, delete_button, entries_source, entries_target, run_button, contacts_var, transfer_var, plan_var,tax_var,exchange_rate_var):
+def update_button_states(save_button, update_button, delete_button, entries_source, entries_target, run_button, contacts_var, transfer_var, plan_var,tax_var,exchange_rate_var,user_var):
     # Check if any entry has content
     active = any(entry.get() for entry in entries_source.values()) or any(
         entry.get() for entry in entries_target.values())
@@ -14,7 +14,7 @@ def update_button_states(save_button, update_button, delete_button, entries_sour
 
     # Enable 'Run' button if at least one checkbox is checked
     run_button.config(state='normal' if contacts_var.get()
-                      or transfer_var.get() or plan_var.get() or tax_var.get() or exchange_rate_var.get() else 'disabled')
+                      or transfer_var.get() or plan_var.get() or tax_var.get() or exchange_rate_var.get() or user_var.get() else 'disabled')
 
 
 def setup_root(root, width=650, height=600):
@@ -52,6 +52,7 @@ def setup_checkboxes_and_run_button(root, update_button_states, entries_source, 
     plan_var = tk.BooleanVar(value=False)
     tax_var = tk.BooleanVar(value=False)
     exchange_rate_var = tk.BooleanVar(value=False)
+    user_var = tk.BooleanVar(value=False)
     contacts_checkbox = tk.Checkbutton(
         root, text="Muhatapları Güncelle", variable=contacts_var, command=update_button_states)
     transfer_checkbox = tk.Checkbutton(
@@ -62,27 +63,31 @@ def setup_checkboxes_and_run_button(root, update_button_states, entries_source, 
         root, text="Vergi Kodlarını ve Oranlarını Güncelle", variable=tax_var, command=update_button_states)
     exchange_rate_checkbox = tk.Checkbutton(
         root, text="Döviz Kurlarını Güncelle", variable=exchange_rate_var, command=update_button_states)
+    user_checkbox = tk.Checkbutton(
+        root, text="Kullanıcıları Güncelle", variable=user_var, command=update_button_states)
     
     contacts_checkbox.grid(row=13, column=0, padx=10, pady=10)
     transfer_checkbox.grid(row=13, column=1, padx=10, pady=10)
     plan_checkbox.grid(row=13, column=2, padx=10, pady=10)
     tax_checkbox.grid(row=14, column=0, padx=10, pady=10)
     exchange_rate_checkbox.grid(row=14, column=1, padx=10, pady=10)
+    user_checkbox.grid(row=14, column=2, padx=10, pady=10)
     run_button = tk.Button(root, text="Çalıştır", state='disabled', command=lambda: run_operations(
-        contacts_var, transfer_var, entries_source, entries_target, column_name, column_value, target_column_name, plan_var, tax_var,exchange_rate_var))
+        contacts_var, transfer_var, entries_source, entries_target, column_name, column_value, target_column_name, plan_var, tax_var,exchange_rate_var,user_var))
     run_button.grid(row=15, column=1, padx=10, pady=10)
 
-    return contacts_checkbox, run_button, contacts_var, transfer_checkbox, transfer_var, plan_checkbox, plan_var, tax_checkbox, tax_var, exchange_rate_checkbox, exchange_rate_var
+    return contacts_checkbox, run_button, contacts_var, transfer_checkbox, transfer_var, plan_checkbox, plan_var, tax_checkbox, tax_var, exchange_rate_checkbox, exchange_rate_var,user_checkbox,user_var
 
 
-def run_operations(contacts_var, transfer_var, entries_source, entries_target, column_name, column_value, target_column_name, plan_var, tax_var,exchange_rate_var):
+def run_operations(contacts_var, transfer_var, entries_source, entries_target, column_name, column_value, target_column_name, plan_var, tax_var,exchange_rate_var,user_var):
     # This dictionary will track the completion status of each operation
     operation_status = {
         'contacts': False,
         'transfer': False,
         'plan': False,
         'tax': False,
-        'exchange_rate': False
+        'exchange_rate': False,
+        'user': False
     }
 
     # Define callbacks for each operation
@@ -104,6 +109,9 @@ def run_operations(contacts_var, transfer_var, entries_source, entries_target, c
     def exchange_rate_callback():
         operation_status['exchange_rate'] = True
         check_complete()
+    def user_callback():
+        operation_status['user'] = True
+        check_complete()    
             
     # This function checks if all initiated operations are completed and shows a message
     def check_complete():
@@ -111,11 +119,14 @@ def run_operations(contacts_var, transfer_var, entries_source, entries_target, c
            (not transfer_var.get() or operation_status['transfer']) and
            (not plan_var.get() or operation_status['plan']) and
             (not tax_var.get() or operation_status['tax']) and
-            (not exchange_rate_var.get() or operation_status['exchange_rate'])):
+            (not exchange_rate_var.get() or operation_status['exchange_rate']) and
+            (not user_var.get() or operation_status['user_rate'])):
             messagebox.showinfo(
                 "Başarılı", "Tüm aktarımlar başarıyla tamamlandı!")
 
     # Execute operations based on checkbox states
+    if user_var.get():
+        execute_user_run(entries_source, entries_target, user_callback)
     if exchange_rate_var.get():
         execute_exchange_rate_run(entries_source, entries_target, exchange_rate_callback)
     if plan_var.get():

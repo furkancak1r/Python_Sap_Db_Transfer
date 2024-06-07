@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import messagebox
 from config_manager import save_config, delete_config
-from data_operations import check_and_update_ocrd, transfer_based_on_condition,account_plan_transfer_and_exclude_balances,tax_run_transfer,exchange_rate_run_transfer
+from data_operations import check_and_update_ocrd, transfer_based_on_condition,account_plan_transfer_and_exclude_balances,tax_run_transfer,exchange_rate_run_transfer,user_update_ousr
 
 
 def handle_config(entries, update=False):
@@ -76,4 +76,13 @@ def execute_exchange_rate_run(entries_source, entries_target, callback):
         messagebox.showinfo("Success", "Döviz kurları aktarımı başarılı!")
     else:
         messagebox.showerror("Error", "Döviz kurları aktarılırken hata meydana geldi!.")
+    callback()    
+    
+def execute_user_run(entries_source, entries_target, callback):
+    success = user_update_ousr(
+        entries_source, entries_target)
+    if success:
+        messagebox.showinfo("Success", "Kullanıcılar aktarımı başarılı!")
+    else:
+        messagebox.showerror("Error", "Kullanıcılar aktarılırken hata meydana geldi!.")
     callback()    

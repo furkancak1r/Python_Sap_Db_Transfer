@@ -328,3 +328,36 @@ def exchange_rate_run_transfer(entries_source, entries_target):
         logging.error(f"exchange_rate_run_transfer: {str(e)}")
         print(f"Error in transferring data: {str(e)}")
         return False
+
+
+def user_update_ousr(entries_source, entries_target):
+    source_config, target_config = parse_db_config(entries_source, entries_target)
+
+    try:
+        with pyodbc.connect(**source_config) as source_conn, pyodbc.connect(**target_config) as target_conn:
+            target_cursor = target_conn.cursor()
+
+            source_columns = fetch_columns(source_conn, 'OUSR')
+            target_columns = fetch_columns(target_conn, 'OUSR')
+
+            common_columns = [col for col in source_columns if col in target_columns]
+
+            # Hedef veritabanındaki tüm OUSR kayıtlarını siler
+            delete_query = "DELETE FROM OUSR"
+            target_cursor.execute(delete_query)
+            target_conn.commit()
+
+            # Kaynak veritabanından OUSR verilerini alır
+            source_query = "SELECT * FROM OUSR"
+            source_rows, column_names = fetch_data(source_conn, source_query)
+
+            for row in source_rows:
+                insert_values = [row[column_names.index(col)] for col in common_columns]
+                insert_query = f"INSERT INTO OUSR ({', '.join(common_columns)}) VALUES ({', '.join(['?' for _ in common_columns])})"
+                
+                target_cursor.execute(insert_query, insert_values)
+                target_conn.commit()
+            return True
+    except Exception as e:
+        logging.error(f"user_update_ousr: {str(e)}")
+        return False
